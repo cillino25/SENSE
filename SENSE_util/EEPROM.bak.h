@@ -70,7 +70,7 @@
  	- TRUE:		Bitrate OK
 
 *************************************************************/
-uint8_t EEPROM_open (void);
+unsigned char EEPROM_open (void);
 
 
 
@@ -81,20 +81,20 @@ uint8_t EEPROM_open (void);
 
  Input Parameter:
  	- uint16_t			Device address
- 	- uint8_t		Type of ACK (ack or Nack)
+ 	- unsigned char		Type of ACK (ack or Nack)
 
  Return Value: uint8_t
 	- Byte read at ADDRESS position.
 	  
 *****************************************************************/
-uint8_t EEPROM_readByte( uint32_t address, uint8_t ACK );
-uint8_t EEPROM_writeByte( uint32_t address, uint8_t data, uint8_t ACK );
-uint8_t EEPROM_writeData( uint32_t address, uint8_t * bpData, uint8_t length, uint8_t ACK);
-uint8_t EEPROM_readData( uint32_t address, uint8_t * bpData, uint8_t lenght, uint8_t ACK );
-uint8_t * EEPROM_readPage( uint16_t pageNumber );
-uint8_t EEPROM_writePage( uint16_t pageNumber, uint8_t * data );
-uint8_t EEPROM_sequentialRead( uint32_t address, uint16_t numOfBytes, uint8_t * dest, uint8_t ACK );
-uint8_t EEPROM_sequentialWrite( uint32_t address, uint16_t numOfBytes, uint8_t * data );
-uint8_t EEPROM_erase( void );
+unsigned char EEPROM_readByte( uint32_t address, unsigned char ACK );
+
+
+unsigned char EEPROM_writeByte( uint32_t address, uint8_t data, unsigned char ACK );
+unsigned char * EEPROM_readPage( unsigned int pageNumber );
+unsigned char EEPROM_writePage( unsigned int pageNumber, unsigned char * data );
+unsigned char EEPROM_sequentialRead( uint16_t address, uint16_t numOfBytes, unsigned char * dest, unsigned char ACK );
+unsigned char EEPROM_sequentialWrite( uint16_t address, uint16_t numOfBytes, unsigned char * data );
+unsigned char EEPROM_erase( void );
 
 #endif // EEPROM_H_

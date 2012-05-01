@@ -63,6 +63,7 @@
       <Value>libm.a</Value>
     </ListValues>
   </avrgcc.linker.libraries.Libraries>
+  <avrgcc.linker.optimization.GarbageCollectUnusedSections>True</avrgcc.linker.optimization.GarbageCollectUnusedSections>
   <avrgcc.linker.miscellaneous.LinkerFlags>-uvfprintf</avrgcc.linker.miscellaneous.LinkerFlags>
   <avrgcc.assembler.debugging.DebugLevel>Default (-g2)</avrgcc.assembler.debugging.DebugLevel>
 </AvrGcc>

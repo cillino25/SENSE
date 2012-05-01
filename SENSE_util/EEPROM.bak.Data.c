@@ -25,9 +25,9 @@ uint8_t EEPROM_open(void){
 }
 
 
-uint8_t EEPROM_readByte(uint32_t address, uint8_t ACK){
+unsigned char EEPROM_readByte(uint32_t address, unsigned char ACK){
 	
-	uint8_t errorStatus, i, data, page, highAddress, lowAddress, slaveAddress;
+	unsigned char errorStatus, i, data, page, highAddress, lowAddress, slaveAddress;
 	page = (address>>16);
 	highAddress=(address>>8);
 	lowAddress=(address);
@@ -36,24 +36,27 @@ uint8_t EEPROM_readByte(uint32_t address, uint8_t ACK){
 	if(page!=0){	// addressing a byte inside first page
 		slaveAddress += PAGE_1;
 	}
+		
 	if((i2c_start_address(slaveAddress+W))!=0){
 		i2c_stop();
-		return ERROR_CODE-1; // returns 125 if encounters an error
+		return 11; // returns 125 if encounters an error
 	}
-	
-	
 	errorStatus |= i2c_sendData_ACK(highAddress);
 	errorStatus |= i2c_sendData_ACK(lowAddress);
 	
-	errorStatus |= i2c_repeatStart();
-	errorStatus |= i2c_sendAddress_ACK(slaveAddress+R);
+	if(errorStatus==1){
+		i2c_stop();
+		return 12;
+	}
+	//errorStatus |= i2c_repeatStart();
+	//errorStatus |= i2c_sendAddress_ACK(slaveAddress+R);
 	
+	i2c_start_address(slaveAddress+R);
 	
 	if(errorStatus==1){
 		i2c_stop();
-		return ERROR_CODE+1;
+		return 13;
 	}
-	
 	
 	if(ACK)
 		data = i2c_receiveData_ACK();
@@ -62,11 +65,12 @@ uint8_t EEPROM_readByte(uint32_t address, uint8_t ACK){
 	
 	if(data == ERROR_CODE){
 		i2c_stop();
-	   	return ERROR_CODE-1;
+	   	return 14;
 	}
 	i2c_stop();
 	return data;
 }
+
 
 
 uint8_t EEPROM_writeByte(uint32_t address, uint8_t data, uint8_t ACK){
@@ -106,7 +110,7 @@ uint8_t EEPROM_writeByte(uint32_t address, uint8_t data, uint8_t ACK){
 	}
 	
 	i2c_stop();
-	_delay_ms(10);
+	_delay_ms(5);
 	if(page!=0) return 125;
 	return(0);
 }
@@ -134,7 +138,7 @@ uint8_t EEPROM_readData( uint32_t address, uint8_t * bpData, uint8_t length, uin
 }
 
 
-uint8_t * EEPROM_readPage( uint16_t pageNumber ){
+uint8_t * EEPROM_readPage( unsigned int pageNumber ){
 	
 	uint8_t *values;
 	unsigned int pageAddress, numOfRead;
@@ -147,7 +151,7 @@ uint8_t * EEPROM_readPage( uint16_t pageNumber ){
  } 
   
 
-uint8_t EEPROM_writePage( uint16_t pageNumber, uint8_t * data ){
+uint8_t EEPROM_writePage( unsigned int pageNumber, uint8_t * data ){
 	
 	uint8_t highAddress, lowAddress, errorStatus, i;
 	unsigned int pageBaseAddress;
@@ -179,7 +183,7 @@ uint8_t EEPROM_writePage( uint16_t pageNumber, uint8_t * data ){
 } 
 
 
-uint8_t EEPROM_sequentialRead(uint32_t address, uint16_t numOfBytes, uint8_t * dest, uint8_t ACK){
+uint8_t EEPROM_sequentialRead(uint16_t address, uint16_t numOfBytes, uint8_t * dest, uint8_t ACK){
 	
 	uint8_t errorStatus, i;
 	uint8_t highAddress=(address>>8), lowAddress=(address);
@@ -214,7 +218,7 @@ uint8_t EEPROM_sequentialRead(uint32_t address, uint16_t numOfBytes, uint8_t * d
 }
 
 
-uint8_t EEPROM_sequentialWrite(uint32_t address, uint16_t numOfBytes, uint8_t * data){
+uint8_t EEPROM_sequentialWrite(uint16_t address, uint16_t numOfBytes, uint8_t * data){
 	uint8_t errorStatus, i;
 	
 	for(i=0;i<numOfBytes;i++){

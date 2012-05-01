@@ -27,7 +27,7 @@
 
 #define  ARB_LOST			0x38
 
-#define  ERROR_CODE			0xD7
+#define  ERROR_CODE			0x7e
 
 #define TW_STATUS	TWSR
 #define TW_CONTROL	TWCR

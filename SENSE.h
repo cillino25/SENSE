@@ -67,54 +67,6 @@ Doxygen documenting commands:
 
 
 
-
-typedef uint8_t byte;
-typedef uint16_t word;
-typedef uint32_t longword;
-
-
-typedef struct{
-	word wMilli;
-	byte bSec;
-	byte bMin;
-	byte bHour;
-	byte bDay;
-	byte bMonth;
-	byte bYear;
-} time_date;
-
-typedef struct{
-	byte bMin;
-	byte bHour;
-} time;
-
-typedef struct{
-	word wA;
-	word wB;
-	word wC;
-	word wAB;
-} count;
-
-typedef struct{
-	byte bDay;
-	byte bMonth;
-	byte bYear;
-} date;
-
-#define NUMBER_OF_READS			48
-
-typedef struct{
-	date	dDate;
-	float	fValues[NUMBER_OF_READS];
-} daily_save_parameter;
-
-typedef struct{
-	daily_save_parameter dsHumidity;
-	daily_save_parameter dsTemperature;
-} daily_save;
-
-
-
 /************************* MiddleWare ***************************/
 
 #define BUTTON_PORT				PORTD
@@ -145,29 +97,31 @@ typedef struct{
 #define BIT7	128
 
 
-#define DEBOUNCE_TIME		7		// RTC counting tens of milliseconds: this is 100ms!
-#define REP_PRESSION_TIME	35		//
-#define LONG_PRESSION_TIME	100		// 
-#define BACKLIGHT_TIME		800		// and this 8s.
+#define DEBOUNCE_TIME				7		// RTC counting tens of milliseconds: this is 100ms!
+#define REPEATED_PRESSION_TIME		35		//
+#define LONG_PRESSION_TIME			100		// 
+#define BACKLIGHT_TIME				800		// and this 8s.
 
 
-#define NUMBER_OF_OPTIONS		7
-#define NUMBER_OF_CONVERSIONS	100
-#define NUMBER_OF_GARBAGE		20
+/************* EEPROM ************/
+#define MICROCHIP_EEPROM_READ_ACK_TYPE		NACK
+#define MICROCHIP_EEPROM_WRITE_ACK_TYPE		ACK
+
+/********** Sensors **********/
+#define VREF					5.0
+#define TEMP_SENSOR_GAIN		0.01   //  V / °C   == 10 mV / °C
+
+#define HIH_ZERO_OFFSET		0.826
+#define HIH_SLOPE			31.483
 
 
-#define TEMPERATURE		0
-#define HUMIDITY		1
 
+/*	bPriLev  */
+#define PRI_TIMER0	1
+#define PRI_ADC		2
+#define PRI_TIMER2	3
+#define PRI_MAIN	9
 
-// Variabili per il calcolo della temperatura
-#define VREF 5.0
-#define R1 1200.0
-#define R2 1100.0
-#define RPT0 100
-#define VM 2.5
-#define K_Rpt 0.3878461538
-#define GAIN 200.0
 
 /*  bBtn  */
 #define NO_BTN		0
@@ -196,17 +150,13 @@ typedef struct{
 
 
 /*  bSelectionMenu  */ //Occhio: questi valori devono essere congruenti con la posizione delle relative stringhe quando stampo il menu
-#define SEL_TH_HUM_1		0
-#define SEL_TH_HUM_2		1
-#define SEL_DATE			2
-#define SEL_TIME			3
+#define SEL_HUM_TH_1			0
+#define SEL_HUM_TH_2			1
+#define SEL_DATE				2
+#define SEL_TIME				3
 
+#define NUMBER_OF_OPTIONS		7
 
-/*	bPriLev  */
-#define PRI_TIMER0	1
-#define PRI_ADC		2
-#define PRI_TIMER2	3
-#define PRI_MAIN	9
 
 
 /* LCD cursor position possible values */
@@ -218,14 +168,6 @@ typedef struct{
 
 /***********************************************************************/
 
-// 
-#define ADC_SET_TEMPERATURE_CHANNEL()\
-	ADMUX=0;
-
-// ADC2, single ended
-#define ADC_SET_HUMIDITY_CHANNEL()\
-	ADMUX=0;\
-	ADMUX |= (1<<MUX0);
 
 #define BACKLIGHT_ON() BACKLIGHT_PORT |= BACKLIGHT_PIN;
 #define BACKLIGHT_OFF() BACKLIGHT_PORT &= ~BACKLIGHT_PIN;
@@ -260,16 +202,77 @@ typedef struct{
 		LCDClear(); LCDCmd(0x02); LCDCmd(0x0C);
 
 
-/*************************************************************************/
-#define EDIT_TIME_DATE(bPos, bBtnUP, bBtnDOWN, bPressed, bMod, decine, unita, b2DigitMax, b1DigitMax)\
-	if(bPos==0){\
-		if(bPressed==bBtnUP && bMod<((b2DigitMax-1)*10+(b1DigitMax+1))){ bMod += 10; }\
-		else if(bPressed == bBtnDOWN && bMod > 9){ bMod -= 10; }\
-	}else{\
-		if(bPressed==bBtnUP && (unita<(b1DigitMax))){ bMod = decine*10 + (++unita);	}\
-		else if(bPressed==bBtnUP && (decine<(b2DigitMax)) && (unita<9)){ bMod = decine*10 + (++unita);	}\
-		else if(bPressed==bBtnDOWN && (unita>0)){ bMod = decine*10 + (--unita);	}else{ NULL; }\
-	} 
+/*********************************** ADC Macros ***************************************/
+
+#define ADC_PRESCALER_VALUE			(1<<ADPS2)|(1<<ADPS1)|(1<<ADPS0)
+
+#define ADC_HUMIDITY_CHANNEL		0
+#define ADC_TEMPERATURE_CHANNEL		1
+
+
+// ADC1, single ended
+#define ADC_SET_TEMPERATURE_CHANNEL()\
+	ADMUX=1<<MUX0;
+
+// ADC0, single ended
+#define ADC_SET_HUMIDITY_CHANNEL()\
+	ADMUX=0;
+
+#define START_ADC()\
+	ADCSRA |= (1<<ADEN)|(1<<ADSC);
+	
+
+
+/*************************************************************************************/
+/*********************************** Typedef *****************************************/
+/*************************************************************************************/
+	
+	
+
+typedef uint8_t byte;
+typedef uint16_t word;
+typedef uint32_t longword;
+
+
+typedef struct{
+	word wMilli;
+	byte bSec;
+	byte bMin;
+	byte bHour;
+	byte bDay;
+	byte bMonth;
+	byte bYear;
+} time_date;
+
+typedef struct{
+	byte bMin;
+	byte bHour;
+} time;
+
+typedef struct{
+	word wA;
+	word wB;
+	word wC;
+	word wAB;
+} count;
+
+typedef struct{
+	byte bDay;
+	byte bMonth;
+	byte bYear;
+} date;
+
+#define NUMBER_OF_LOGS_PER_DAY			48
+
+typedef struct{
+	date	dDate;
+	float	fValues[NUMBER_OF_LOGS_PER_DAY];
+} daily_log_type;
+
+typedef struct{
+	daily_log_type dsHumidity;
+	daily_log_type dsTemperature;
+} daily_log;
 
 
 
@@ -284,15 +287,17 @@ void init_ADC(void);
 void init_LCD(uint8_t bPowerUp);
 void init_TIMER0_B(void);
 void init_TIMER2_B(void);
-double getTemperature(void);
-byte getHumidity(double temperature);
-void multiplexADChannel(void);
-double ADC_average(volatile double * valuesDOUBLE, volatile byte * valuesBYTE);
+void startADC();
+float getTemperature(void);
+float getHumidity(float temperature);
 void refreshQuote(void);
+void vConfirmState(void);
 int isLeapYear(byte year);
 int checkDay(volatile time_date *time, volatile byte* days);
 void toggleTimeColon(void);
 int _round(double x);
+
+void vSaveToEEPROM()
 
 char *itoa(int value, char * str, int base);
 int sprintf(char * str, const char * format, ...);
