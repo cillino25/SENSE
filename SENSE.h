@@ -30,7 +30,7 @@ Doxygen documenting commands:
 #ifndef SENSE_H_
 #define SENSE_H_
 
-
+//#define TESTING 1
 
 /** \def CPU Frequency := 16 MHz */
 #ifndef F_CPU
@@ -106,6 +106,21 @@ Doxygen documenting commands:
 /************* EEPROM ************/
 #define MICROCHIP_EEPROM_READ_ACK_TYPE		NACK
 #define MICROCHIP_EEPROM_WRITE_ACK_TYPE		ACK
+#define MICROCHIP_EEPROM_SEQ_READ_ACK_TYPE	NACK
+
+
+#define EEPROM_DAY_ADD					0
+#define EEPROM_MONTH_ADD				1
+#define EEPROM_YEAR_ADD					2
+#define EEPROM_MIN_ADD					3
+#define EEPROM_HOUR_ADD					4
+#define EEPROM_LOGGED_DAYS_ADD			5		// 2 byte
+#define EEPROM_TODAY_LOGS_ADD			7
+#define EEPROM_LAST_INDEX_ADD			8		// 4 byte
+#define SIZE_OF_LOG					sizeof(float)
+
+
+
 
 /********** Sensors **********/
 #define VREF					5.0
@@ -146,6 +161,7 @@ Doxygen documenting commands:
 #define STATE_EDIT_HUM_ON_TH_CONFIRM		7
 #define STATE_EDIT_HUM_AL_TH				8
 #define STATE_EDIT_HUM_AL_TH_CONFIRM		9
+#define STATE_LOG_DATA						10
 
 
 
@@ -166,7 +182,7 @@ Doxygen documenting commands:
 #define ZONE_CURSOR_POSITION	19
 
 
-/***********************************************************************/
+/************************************ Backlight Macros ***********************************/
 
 
 #define BACKLIGHT_ON() BACKLIGHT_PORT |= BACKLIGHT_PIN;
@@ -179,13 +195,13 @@ Doxygen documenting commands:
 	TCCR2B |= TIMER2_CS;
 
 //#define RESET_BACKLIGHT()\
-	
+
 #define STOP_BACKLIGHT()\
 	BACKLIGHT_PORT &= ~BACKLIGHT_PIN;\
 	TCCR2B &= ~(TIMER2_CS);
 
 
-/****************************** LCD Macros ******************************/
+/************************************* LCD Macros **************************************/
 
 #define LCD_SET_BLINKING_CURSOR		LCDCmd(0x0f);
 #define LCD_SET_UNDERLINE_CURSOR	LCDCmd(0x0e);
@@ -262,42 +278,50 @@ typedef struct{
 	byte bYear;
 } date;
 
-#define NUMBER_OF_LOGS_PER_DAY			48
+#define MINS_UNTIL_LOG					720
+#define NUMBER_OF_LOGS_PER_DAY			24*60/MINS_UNTIL_LOG
 
 typedef struct{
 	date	dDate;
 	float	fValues[NUMBER_OF_LOGS_PER_DAY];
 } daily_log_type;
 
+//typedef struct{
+	//daily_log_type dltHumidity;
+	//daily_log_type dltTemperature;
+//} daily_log;
+
 typedef struct{
-	daily_log_type dsHumidity;
-	daily_log_type dsTemperature;
-} daily_log;
-
-
+	date dDate;
+	float fHumValues[NUMBER_OF_LOGS_PER_DAY];
+	float fTempValues[NUMBER_OF_LOGS_PER_DAY];
+}daily_log;
 
 
 /*************************************************************************************/
 /*********************************** Headers *****************************************/
 /*************************************************************************************/
 
-
-void _init_AVR(void);
+void init_EEPROM(void);
 void init_ADC(void);
 void init_LCD(uint8_t bPowerUp);
 void init_TIMER0_B(void);
 void init_TIMER2_B(void);
-void startADC();
+void _init_AVR(void);
+void init_CTRL_Data_fromEEPROM(void);
 float getTemperature(void);
 float getHumidity(float temperature);
 void refreshQuote(void);
 void vConfirmState(void);
-int isLeapYear(byte year);
-int checkDay(volatile time_date *time, volatile byte* days);
+uint8_t isLeapYear(byte year);
+uint8_t checkDay(volatile time_date *time, volatile byte* days);
 void toggleTimeColon(void);
+void printIdleLCD(void);
 int _round(double x);
-
-void vSaveToEEPROM()
+uint8_t isValidTimeDate(volatile time_date * time);
+uint8_t isTimeToSample(volatile time_date * time);
+//uint8_t updateEEPROM_TimeDate(volatile time_date * time);
+//void dataLog();
 
 char *itoa(int value, char * str, int base);
 int sprintf(char * str, const char * format, ...);

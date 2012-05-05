@@ -89,11 +89,11 @@ uint8_t EEPROM_open (void);
 uint8_t EEPROM_readByte( uint32_t address );
 uint8_t EEPROM_writeByte( uint32_t address, uint8_t data);
 uint8_t EEPROM_writeData( uint32_t address, uint8_t * bpData, uint8_t length);
-uint8_t EEPROM_readData( uint32_t address, uint8_t * bpDest, uint8_t lenght);
-uint8_t EEPROM_readPage( uint32_t pageNumber, uint8_t * dest );
-uint8_t EEPROM_writePage( uint32_t pageNumber, uint8_t * src );
-uint8_t EEPROM_sequentialRead( uint32_t address, uint32_t numOfBytes, uint8_t * dest);
-uint8_t EEPROM_sequentialWrite( uint32_t address, uint32_t numOfBytes, uint8_t * src);
-uint32_t EEPROM_erase( uint32_t sizeKbit );
+uint8_t EEPROM_readData( uint32_t address, uint8_t * bpData, uint8_t lenght);
+uint8_t * EEPROM_readPage( uint16_t pageNumber );
+uint8_t EEPROM_writePage( uint32_t pageNumber, uint8_t * data);
+uint32_t EEPROM_sequentialRead( uint32_t address, uint32_t numOfBytes, uint8_t * dest);
+uint8_t EEPROM_sequentialWrite( uint32_t address, uint32_t numOfBytes, uint8_t * data);
+uint8_t EEPROM_erase( uint32_t dimension );
 
 #endif // EEPROM_H_

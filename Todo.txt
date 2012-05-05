@@ -1,11 +1,17 @@
 
 * EEPROM
 X	- Save float values into EEPROM
-	- Fill data structure --> salvo i campioni sulla EEPROM del 328, e quando scatta la mezzanotte li copio come
-								struct sulla EEPROM esterna.
-	- Create function that saves the structure into the EEPROM
+	- Fill EEPROM --> each time isTimeToSample returns true, we sample the ADC and then send the values into the EEPROM,
+						updating logsToday, lastIndex
 	- Valuate EEPROM usage (index of how many days we saved until last transfer * bytes per day / EEPROM size)
 	- Save dayIndex and howManyDays into EEPROM!
+
+
+* Thresholds behavior:
+	- Pull high a pin for alarm th. --> Buzzer
+		+ Display ALARM on LCD
+	- Pull high a pin for on th. --> Air de-humidifier
+		+ Display de-hum ON on LCD
 
 
 * Serial interface:
@@ -18,8 +24,3 @@ X	- Save float values into EEPROM
 		+ How many days since last transfer		-\--> these two can be done automatically once opened serial port.
 
 
-* Thresholds behavior:
-	- Pull high a pin for alarm th. --> Buzzer
-		+ Display ALARM on LCD
-	- Pull high a pin for on th. --> Air de-humidifier
-		+ Display de-hum ON on LCD

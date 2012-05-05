@@ -33,7 +33,7 @@ volatile count cButtonIntegrator;		///< Keeps track of the time a button is bein
 volatile byte bTimeChanged;				///< Reports time is changed and quotes have to be refreshed
 volatile byte bDateChanged;				///< Reports date has changed.
 volatile byte bTempChanged;				///< Reports temperature has changed.
-volatile byte bHumChanged;				///< Reports humidity has chaged.
+volatile byte bHumChanged;				///< Reports humidity has changed.
 volatile byte bPrintQuotes;				///< Reports that quotes has to be printed.
 
 
@@ -55,18 +55,6 @@ volatile word wBacklightCounter;		///< Time counter for backlight.
 */
 volatile float fTemperature;
 
-volatile float fVp;				// working variables: useful only for seeing their value in Isis.
-volatile float fRpt;			//
-volatile float fAD;				//
-volatile float fRH;				//
-volatile float fRH_comp;		//
-volatile float fVout;			//
-volatile float fVadc1;			//
-volatile float fVadc0;			//
-
-volatile byte bFirstConversion=1;
-volatile byte bYetToSample;
-
 /**
  * \brief Humidity samples array.
  *
@@ -78,6 +66,13 @@ volatile byte bYetToSample;
  */
 volatile float fHumidity;				///< Humidity measured.
 
+//volatile daily_log dlDataLog;			// Struct containing humidity and temperature logs.
+
+volatile word wLoggedDays;				///< Number of days until last EEPROM export.
+volatile byte bTodayLogs;				///< Number of logs taken today.
+volatile longword lLastIndex;			///< Address of the next byte to be written into EEPROM (first FREE byte).
+
+volatile byte bFirstConversion=1;
 volatile byte bHumOverflow;				///< Needed for displaying correctly the humidity value onto the LCD.
 
 
@@ -101,31 +96,22 @@ volatile byte bTimeCommaState;
 volatile byte bTimeColonToToggle;
 volatile byte bBacklightActive;
 
-volatile time_date tZ1;
-volatile time_date tZ2;
-
 volatile byte sreg;
 volatile byte bPriLev;
 volatile byte bState=STATE_IDLE;
+volatile byte bStateOld=STATE_IDLE;
 volatile byte bBtn;
 
-char str[15]="";
+char str[17]="";
 char options[NUMBER_OF_OPTIONS+1][16]={"1.Soglia 1-DEUM","2.Soglia 2-ALL ", "3.Data         ",
 					"4.Ora          ", "5.hello       ", "6.world        ", "7.ciao         ", "              "};
 
 
 byte baDays[12]={31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-	
+
 	
 volatile longword i=0;
-volatile unsigned char val[11], *val1;
-volatile longword j=0;
-volatile byte isrStolen;
-volatile longword h=0;
-volatile float data = 45.7;
-volatile byte b;
-float read;
-volatile byte readValues[10];
+
 
 
 /******************************************************************************/
@@ -135,49 +121,9 @@ volatile byte readValues[10];
 int main(void){
 	bPriLev=PRI_MAIN;
 	
-	tTime.wMilli=0;
-	tTime.bSec=0;
-	tTime.bMin=0;
-	tTime.bHour=0;
-	tTime.bDay=7;
-	tTime.bMonth=8;
-	tTime.bYear=11;
-	
 	_init_AVR();
 	
-	
-	longword address = 0x00F7;
-	
-	
-	EEPROM_writeData( address, &data, sizeof(float), MICROCHIP_EEPROM_WRITE_ACK_TYPE );
-	LCDClear();
-	LCDWriteStringXY(0,0,"printed");
-	_delay_ms(300);
-	//byte* pRead = &read;
-	EEPROM_readData(address, &read, sizeof(float), MICROCHIP_EEPROM_READ_ACK_TYPE);
-	
-	
-	sprintf(str, "read: %05.1f", read);
-	//sprintf(str, "read: %d", b);
-	LCDWriteStringXY(0,1,str);
-	_delay_ms(1000);
-		
-	byte highAddress;
-	LCDClear();
-	LCDWriteStringXY(0,0,"printing:");
-	_delay_ms(400);	
-	for(i = 0; i<5; i++){
-		//LCDClear();
-		
-		EEPROM_writeByte(address, i+1, MICROCHIP_EEPROM_WRITE_ACK_TYPE);
-		_delay_ms(20);
-		readValues[i] = EEPROM_readByte(address, MICROCHIP_EEPROM_READ_ACK_TYPE);
-		sprintf(str, "%5lx - %d",address, readValues[i]);		// !!! :   "%lx" permette di prendere come argomento un long!
-		
-		address++;
-		LCDWriteStringXY(0,0,str);
-		_delay_ms(400);
-	}
+	BACKLIGHT_ON();
 	
 	while(1) { /* Infinite Loop */
 			
@@ -188,6 +134,7 @@ int main(void){
 				switch( bBtn ){
 					case NO_BTN:
 						if( bTimeColonToToggle ){ toggleTimeColon(); bTimeColonToToggle=0; }
+						
 						refreshQuote();
 						bPrintQuotes=1;
 						break;
@@ -197,12 +144,14 @@ int main(void){
 					case BTN_C:
 					case BTN_A_LONG:
 					case BTN_B_LONG:
+						STOP_BACKLIGHT();
 						START_BACKLIGHT();
 						bBtn=NO_BTN;
 						break;
 						
 					case BTN_C_LONG:
 						bState = STATE_MENU;
+						STOP_BACKLIGHT();
 						BACKLIGHT_ON();
 						bBacklightActive=1;
 						bBtn=NO_BTN;
@@ -480,19 +429,19 @@ int main(void){
 							bPrintQuotes=0;
 							LCDClear();
 							bHumOnThresholdEditing = bHumOnThreshold;
-							sprintf(str, "RH= %02d", bHumOnThresholdEditing);
+							sprintf(str, "p:%02dRH,  c:%02d RH", bHumOnThreshold, bHumOnThresholdEditing);
 							LCDWriteStringXY(0,0, "Edit Hum-On TH:");
-							LCDWriteStringXY(6,1, str);
-							LCDWriteString("%");
+							LCDWriteStringXY(0,1, str);
+							//LCDWriteString("%");
 							LCD_SET_UNDERLINE_CURSOR;
-							LCD_CURSOR_LEFT_N(2);
+							LCD_CURSOR_LEFT_N(4);
 						}
 						break;
 						
 					case BTN_A:
 						if( ++bHumOnThresholdEditing > 99 ) bHumOnThresholdEditing = 0;
 						sprintf(str, "%02d", bHumOnThresholdEditing);
-						LCDWriteStringXY(10,1, str);
+						LCDWriteStringXY(11,1, str);
 						LCD_CURSOR_LEFT_N(1);
 						bBtn=0;
 						break;
@@ -500,13 +449,14 @@ int main(void){
 					case BTN_B:
 						if( --bHumOnThresholdEditing > 100 ) bHumOnThresholdEditing=99;
 						sprintf(str, "%02d", bHumOnThresholdEditing);
-						LCDWriteStringXY(10,1, str);
+						LCDWriteStringXY(11,1, str);
 						LCD_CURSOR_LEFT_N(1);
 						bBtn=0;
 						break;
 						
 					case BTN_C_LONG:
 						bState = STATE_EDIT_HUM_ON_TH_CONFIRM;
+						sprintf(str, "");
 						bPrintQuotes=1;
 						bBtn=0;
 						break;
@@ -530,19 +480,18 @@ int main(void){
 							bPrintQuotes=0;
 							LCDClear();
 							bHumAlarmThresholdEditing = bHumAlarmThreshold;
-							sprintf(str, "RH= %02d", bHumAlarmThresholdEditing);
+							sprintf(str, "p:%02dRH,  c:%02d RH", bHumAlarmThreshold, bHumAlarmThresholdEditing);
 							LCDWriteStringXY(0,0, "Edit Hum-Al TH:");
-							LCDWriteStringXY(6,1, str);
-							LCDWriteString("%");
+							LCDWriteStringXY(0,1, str);
 							LCD_SET_UNDERLINE_CURSOR;
-							LCD_CURSOR_LEFT_N(2);
+							LCD_CURSOR_LEFT_N(4);
 						}
 						break;
 						
 					case BTN_A:
 						if( ++bHumAlarmThresholdEditing > 99 ) bHumAlarmThresholdEditing = 0;
 						sprintf(str, "%02d", bHumAlarmThresholdEditing);
-						LCDWriteStringXY(10,1, str);
+						LCDWriteStringXY(11,1, str);
 						LCD_CURSOR_LEFT_N(1);
 						bBtn=0;
 						break;
@@ -550,13 +499,14 @@ int main(void){
 					case BTN_B:
 						if( --bHumAlarmThresholdEditing > 100 ) bHumAlarmThresholdEditing=99;
 						sprintf(str, "%02d", bHumAlarmThresholdEditing);
-						LCDWriteStringXY(10,1, str);
+						LCDWriteStringXY(11,1, str);
 						LCD_CURSOR_LEFT_N(1);
 						bBtn=0;
 						break;
 						
 					case BTN_C_LONG:
 						bState = STATE_EDIT_HUM_AL_TH_CONFIRM;
+						
 						bPrintQuotes=1;
 						bBtn=0;
 						break;
@@ -570,7 +520,52 @@ int main(void){
 			case STATE_EDIT_HUM_AL_TH_CONFIRM:
 				vConfirmState();
 				break;
-/*------------------------------------------------------------------------------------------------------------*/				
+				
+/*---------------------------------------------------------------__LOGGING_DATA__-------------------------------*/
+			case STATE_LOG_DATA:
+				if(bTodayLogs == 0){
+					EEPROM_writeByte(lLastIndex++, tTime.bDay);
+					EEPROM_writeByte(lLastIndex++, tTime.bMonth);
+					EEPROM_writeByte(lLastIndex++, tTime.bYear);
+				}
+				EEPROM_writeData(lLastIndex, (byte*)&fHumidity, SIZE_OF_LOG);
+				lLastIndex += SIZE_OF_LOG;
+				EEPROM_writeData(lLastIndex, (byte*)&fTemperature, SIZE_OF_LOG);
+				lLastIndex += SIZE_OF_LOG;
+				
+				if(++bTodayLogs >= NUMBER_OF_LOGS_PER_DAY){
+					bTodayLogs=0;
+					wLoggedDays++;
+					
+					// Ho raggiunto il numero massimo di log giornalieri: aggiorno i valori della data e LoggedDays nella EEPROM.
+					EEPROM_writeByte(EEPROM_DAY_ADD, tTime.bDay);
+					EEPROM_writeByte(EEPROM_MONTH_ADD, tTime.bMonth);
+					EEPROM_writeByte(EEPROM_YEAR_ADD, tTime.bYear);
+					
+					EEPROM_writeData(EEPROM_LOGGED_DAYS_ADD, (byte*)&wLoggedDays, sizeof(word));
+				}
+				
+				// Aggiorno todayLogs, lastIndex e ora ad ogni campionamento.
+				EEPROM_writeByte(EEPROM_TODAY_LOGS_ADD, bTodayLogs);
+				EEPROM_writeData(EEPROM_LAST_INDEX_ADD, (byte*)&lLastIndex, sizeof(long));
+				
+				EEPROM_writeByte(EEPROM_MIN_ADD, tTime.bMin);
+				EEPROM_writeByte(EEPROM_HOUR_ADD, tTime.bHour);
+				
+				//LCDClear();
+				//sprintf(str, "%d", bState);
+				//LCDWriteStringXY(0,0,str);
+				
+				bState = bStateOld;
+				
+				//sprintf(str, "%d", bState);
+				//LCDWriteStringXY(0,1,str);
+				//
+				//_delay_ms(200);
+				
+				break;
+				
+/*------------------------------------------------------------------------------------------------------------*/
 			default:
 				break;
 		}
@@ -667,15 +662,13 @@ ISR(TIMER0_COMPB_vect){
 		if( tTime.bSec<59 ){
 			tTime.bSec++;
 			bTimeColonToToggle=1;	// time colon is flashing at 1 Hz
-			START_ADC();		//testing: adc int every 1 sec
+			//START_ADC();			//testing: adc int every 1 sec
 		}else{
 			tTime.bSec=0;
 			if( tTime.bMin<59 ){
 				tTime.bMin++;
-				//if(tTime.bMin == 30) START_ADC();		// faccio il campionamento dell'ADC ogni 30° minuto
 			}else{
 				tTime.bMin=0;
-				//START_ADC();							// e ogni 0°.
 				if( tTime.bHour<23 ) tTime.bHour++;
 				else {
 					tTime.bHour=0;
@@ -698,6 +691,11 @@ ISR(TIMER0_COMPB_vect){
 				}	// hour				
 			}  // minute
 			bTimeChanged=1;		// refresh quote every min for the minutes changing
+			
+			if(isTimeToSample(&tTime)){		// if it is time to log data into EEPROM
+				START_ADC();					// start ADC
+			}
+			
 		}	// second
 	} // millisecond
 	
@@ -723,19 +721,7 @@ ISR(TIMER2_COMPB_vect){			// Timer2 : 8 bit
 /****************************  ADC Interrupt ******************************/
 ISR(ADC_vect){
 	if(bPriLev<PRI_ADC){
-		//bYetToSample=1;
-			// esempio: l'adc termina la conversione e vorrebbe iniziare l'int ADC_vect, ma
-			// è attiva la routine TIMER0, a maggiore priorità: in questo caso esco da ADC_vect
-			// con questo return, con la conseguenza che la routine ADC_int finisce (ESCE) senza che ne
-			// venga eseguito il contenuto. Come fare per rieseguire correttamente la routine???
-			// exploit: bYetToSample mi ricorda che questo campionamento non è avvenuto, e
-			// appena lo scopro eseguo una nuova lettura dell'ADC.
-			/*--> Soluzione alternativa: rendere questa routine non interrompibile */
-			
-			// forse basta risettare ADIF, dato che viene settata a 0 dall'hw una volta che la routine è chiamata 
-			ADCSRA |= 1<<ADIF;
-			isrStolen++;
-			
+		ADCSRA |= 1<<ADIF;
 		return;
 	}
 	
@@ -754,9 +740,9 @@ ISR(ADC_vect){
 	
 	float fTemperatureOld;
 	float fHumidityOld;
+	
 	switch(bChannel){
 		case ADC_TEMPERATURE_CHANNEL:
-			
 			fTemperatureOld = fTemperature;
 			fTemperature = getTemperature();
 			if(fTemperatureOld != fTemperature) bTempChanged=1;
@@ -769,7 +755,6 @@ ISR(ADC_vect){
 			break;
 			
 		case ADC_HUMIDITY_CHANNEL:
-			
 			fHumidityOld = fHumidity;
 			fHumidity = getHumidity(fTemperature);
 			if(fHumidityOld != fHumidity) bHumChanged=1;
@@ -777,6 +762,10 @@ ISR(ADC_vect){
 			ADC_SET_TEMPERATURE_CHANNEL();
 			bChannel = ADC_TEMPERATURE_CHANNEL;
 			bFirstConversion=1;
+			
+			bStateOld = bState;			// cambio lo stato qui e non all'interno di ISR(TIMER_0) perchè è dopo questa
+			bState = STATE_LOG_DATA;	// routine che sono pronti i campioni.
+			
 			break;
 		
 		default: break;
@@ -793,6 +782,31 @@ ISR(ADC_vect){
 /*******************************************************************/
 /*******************************************************************/
 
+void init_EEPROM(void){
+	EEPROM_open();
+	//EEPROM_erase(1024);
+	#ifdef TESTING
+		EEPROM_writeByte(EEPROM_DAY_ADD, 06);
+		EEPROM_writeByte(EEPROM_MONTH_ADD, 05);
+		EEPROM_writeByte(EEPROM_YEAR_ADD, 12);
+		EEPROM_writeByte(EEPROM_MIN_ADD, 0);
+		EEPROM_writeByte(EEPROM_HOUR_ADD, 0);
+		
+		
+		EEPROM_writeByte(EEPROM_TODAY_LOGS_ADD, 0x0);
+		
+		word daysNum = 2;
+		EEPROM_writeData(EEPROM_LOGGED_DAYS_ADD, (uint8_t*)&daysNum, sizeof(word));
+		
+		long add = 0x33;
+		EEPROM_writeData(EEPROM_LAST_INDEX_ADD, (uint8_t*)&add, sizeof(long));
+	#endif
+	
+	
+	
+	
+}
+
 void init_ADC(void){
 	ADCSRA = ADC_PRESCALER_VALUE;					// ADC Prescaler = Fck/128
 	ADCSRA |= (1<<ADIE);							// enabling ADC Interrupt
@@ -802,14 +816,7 @@ void init_ADC(void){
 
 void init_LCD(uint8_t bPowerUp){
 	if(bPowerUp) InitLCD(0);
-	LCDClear();
-	LCDWriteStringXY(CLOCK_CURSOR_POSITION,0,"00:00");
-	LCDWriteStringXY(TEMP_CURSOR_POSITION,1,"00.0");
-	LCDByte(0b11011111, 1);		// Scrive il carattere °: dalla tabella 4 del datasheet HD44780.pdf vediamo che il carattere ? 11011111;
-								// lo mandiamo come byte (LCDByte()) sapendo che dobbiamo mettere RS a 1 (dato!)
-	LCDWriteStringXY(TEMP_CURSOR_POSITION+5, 1, "C,");
-	LCDWriteStringXY(HUM_CURSOR_POSITION-3, 1, "RH=88.8%");
-
+	printIdleLCD();
 }
 
 /*
@@ -840,16 +847,85 @@ void _init_AVR(void){
 	BUTTON_PORT = BUTTON_A+BUTTON_B+BUTTON_C;		// pins 2,3,4 of BUTTON_PORT (portD) are pulled high
 	
 	
-	EEPROM_open();
+	init_EEPROM();
+	init_CTRL_Data_fromEEPROM();
 	init_ADC();
-	init_LCD(1);	// Initialize the LCD while powering it up.
+	init_LCD(1);			// Initialize the LCD while powering it up.
 	init_TIMER0_B();
 	init_TIMER2_B();
 	sei();						// SEt Interrupts: let's start!
 }
 
+void init_CTRL_Data_fromEEPROM(void){
+	
+	time_date tEE;
+	
+	tEE.bDay = EEPROM_readByte(EEPROM_DAY_ADD);
+	tEE.bMonth = EEPROM_readByte(EEPROM_MONTH_ADD);
+	tEE.bYear = EEPROM_readByte(EEPROM_YEAR_ADD);
+	tEE.bMin = EEPROM_readByte(EEPROM_MIN_ADD);
+	tEE.bHour = EEPROM_readByte(EEPROM_HOUR_ADD);
+	tEE.bSec = 0;
+	tEE.wMilli = 0;
+	
+	if(isValidTimeDate(&tEE)){
+		tTime = tEE;
+	}else{
+		tTime.bDay = 4;
+		tTime.bMonth = 5;
+		tTime.bYear = 12;
+		tTime.wMilli=0;
+		tTime.bSec=0;
+		tTime.bMin=0;
+		tTime.bHour=0;
+		
+		EEPROM_writeByte(EEPROM_DAY_ADD, tTime.bDay);
+		EEPROM_writeByte(EEPROM_MONTH_ADD, tTime.bMonth);
+		EEPROM_writeByte(EEPROM_YEAR_ADD, tTime.bYear);
+		EEPROM_writeByte(EEPROM_MIN_ADD, tTime.bMin);
+		EEPROM_writeByte(EEPROM_HOUR_ADD, tTime.bHour);
+	}
+	
+	byte todayLogsTemp;
+	word daysLoggedTemp;
+	long lastIndexTemp;
+	
+	todayLogsTemp = EEPROM_readByte(EEPROM_TODAY_LOGS_ADD);
+	EEPROM_readData(EEPROM_LOGGED_DAYS_ADD, (byte*)&daysLoggedTemp, sizeof(word));
+	EEPROM_readData(EEPROM_LAST_INDEX_ADD, (byte*)&lastIndexTemp, sizeof(long));
+	
+	if(( todayLogsTemp < 0 )||( todayLogsTemp > NUMBER_OF_LOGS_PER_DAY )){
+		bTodayLogs = 0;
+		EEPROM_writeByte(EEPROM_TODAY_LOGS_ADD, bTodayLogs);
+	}else{
+		bTodayLogs = todayLogsTemp;
+	}
+	
+	if(( daysLoggedTemp < 0 )){
+		wLoggedDays = 0;
+		EEPROM_writeData(EEPROM_LOGGED_DAYS_ADD, (byte*)&wLoggedDays, sizeof(word));
+	}else{
+		wLoggedDays = daysLoggedTemp;
+	}
+	
+	if(( lastIndexTemp < EEPROM_LAST_INDEX_ADD+4 )||( lastIndexTemp >= EEPROM_SIZE_B )){
+		#ifdef TESTING
+			lLastIndex = EEPROM_LAST_INDEX_ADD+5;
+		#else
+			lLastIndex = EEPROM_LAST_INDEX_ADD+4;
+		#endif
+		
+		EEPROM_writeData(EEPROM_LAST_INDEX_ADD, (byte*)&lLastIndex, sizeof(long));
+	}else{
+		lLastIndex = lastIndexTemp;
+	}
+	
+	return;
+}
+
 float getTemperature(){
 	float temp;
+	float fVadc1;
 	
 	fVadc1 = ADC * VREF/1024;
 	temp = fVadc1 / TEMP_SENSOR_GAIN;
@@ -858,12 +934,12 @@ float getTemperature(){
 }
 
 float getHumidity(float temperature){
-	//float fVadc0
-	//float fRH
-	//float fRH_comp
+	float fVadc0;
+	float fRH;
+	float fRH_comp;
 	
 	fVadc0 = ADC * VREF/1024;
-	fRH = (fVadc0/VREF - 0.16) / 0.0062;					// Formulas given by the datasheet of HIH-4030
+	fRH = (fVadc0/VREF - 0.16) / 0.0062;					// Formulas given by HIH-4030 datasheet	
 	fRH_comp = fRH/(1.0546-0.00216*temperature);			//
 	
 	return fRH_comp;
@@ -903,6 +979,12 @@ void refreshQuote(){
 		LCDWriteString("%");
 	}
 }
+
+void dataLog(time_date *time, void * humidity, void * temperature){
+	START_ADC();
+	
+}
+
 
 void vConfirmState(void){
 	
@@ -970,12 +1052,40 @@ void vConfirmState(void){
 	}
 }
 
-int isLeapYear(byte year){
+uint8_t isValidTimeDate(volatile time_date * time){
+	
+	if(( time->bDay > 31 )||( time->bDay == 0 )) return 0;
+	if((time->bMonth > 12)||(time->bMonth == 0)) return 0;
+	if(time->bYear > 99) return 0;
+	if(time->bMin > 59) return 0;
+	if(time->bHour > 23) return 0;
+	
+	return 1;
+}
+
+uint8_t isTimeToSample(volatile time_date *time){
+	if(((time->bHour*60 + time->bMin) % MINS_UNTIL_LOG)==0) return 1;
+	return 0;
+}
+
+/*uint8_t updateEEPROM_TimeDate(volatile time_date * time){
+	byte error;
+	error = EEPROM_writeByte(EEPROM_DAY_ADD, time->bDay);
+	error |= EEPROM_writeByte(EEPROM_MONTH_ADD, time->bMonth);
+	error |= EEPROM_writeByte(EEPROM_YEAR_ADD, time->bYear);
+	error |= EEPROM_writeByte(EEPROM_MIN_ADD, time->bMin);
+	error |= EEPROM_writeByte(EEPROM_HOUR_ADD, time->bHour);
+	
+	if(error) return 1;
+	return 0;
+}*/
+
+uint8_t isLeapYear(byte year){
 	if(year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) return 1;
 	return 0;
 }
 
-int checkDay(volatile time_date *time, volatile byte *days){	
+uint8_t checkDay(volatile time_date *time, volatile byte *days){	
 	/* se bDay supera il valore massimo del corrispondente bMonth,	 *
 	 * esso viene portato al massimo valore consentito.				 */
 	
@@ -990,7 +1100,7 @@ int checkDay(volatile time_date *time, volatile byte *days){
 	return 0;
 }
 
-void toggleTimeColon(){
+void toggleTimeColon( void ){
 	if(bTimeCommaState){
 		LCDWriteStringXY(CLOCK_CURSOR_POSITION+2, 0, ":");
 		bTimeCommaState=0;
@@ -999,6 +1109,29 @@ void toggleTimeColon(){
 		bTimeCommaState=1;
 	}
 }
+
+void printIdleLCD( void ){
+	LCDClear();
+	
+	bDateChanged = 1;
+	bTimeChanged = 1;
+	bHumChanged = 1;
+	bTempChanged = 1;
+	
+	refreshQuote();
+	
+	//sprintf(str, "%02d/%02d/%02d", tTime.bDay, tTime.bMonth, tTime.bYear);
+	//LCDWriteStringXY(0,0,str);
+	//
+	//LCDWriteStringXY(CLOCK_CURSOR_POSITION,0,"00:00");
+	//LCDWriteStringXY(TEMP_CURSOR_POSITION,1,"00.0");
+	//LCDByte(0b11011111, 1);		// Scrive il carattere °: dalla tabella 4 del datasheet HD44780.pdf vediamo che il carattere ? 11011111;
+								//// lo mandiamo come byte (LCDByte()) sapendo che dobbiamo mettere RS a 1 (dato!)
+	//LCDWriteStringXY(TEMP_CURSOR_POSITION+5, 1, "C,");
+	//LCDWriteStringXY(HUM_CURSOR_POSITION-3, 1, "RH=88.8%");
+	
+}
+
 
 int _round(double x){
 	if((x-((int)x))>0.5) return ((int)x)+1;

@@ -115,14 +115,14 @@ unsigned char i2c_sendData_ACK(unsigned char data)
 	
 	while (!(TWCR & (1<<TWINT)));
 	
-	if (((TWSR & 0xF8) == MT_DATA_ACK)||((TWSR & 0xF8) == MT_DATA_ACK))
+	if (((TWSR & 0xF8) == MT_DATA_ACK)||((TWSR & 0xF8) == MT_DATA_NACK))
 		return(0);
 	else
 		return(1);
 }
 unsigned char i2c_sendData_NACK(unsigned char data)
 {
-	TWDR = data; 
+	TWDR = data;
 	TWCR = (1<<TWINT)|(1<<TWEN);
 	
 	while (!(TWCR & (1<<TWINT)));
